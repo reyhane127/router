@@ -1,0 +1,219 @@
+###################
+1.
+
+
+Linux — فقط چیزهای لازم
+اول اینو یاد بگیر:
+Linux command line
+filesystem
+permissions
+processes
+services
+SSH
+shell
+grep, cat, find, ps, kill, systemctl
+environment variables
+
+#####################
+
+2.
+
+Networking — مهم‌ترین بخش 🔴
+قبل از اینکه بری OpenWrt، اینا رو بفهم:
+حتماً:
+
+IP
+subnet
+gateway
+routing
+routing table
+DNS
+DHCP
+NAT
+TCP/UDP
+port
+ICMP
+ARP
+network interface
+packet
+latency
+packet loss
+
+<mcse>
+######################
+
+بعد مستقیم برو سراغ iproute2.
+iproute2 ابزارهای اصلی Linux برای کار با شبکه است و دو ابزار مهمش ip و tc هستند.
+یعنی باید بتوانی این مفاهیم را با دست انجام بدهی:
+ip addr
+ip link
+ip route
+ip rule
+ip neigh
+
+######################
+OpenWrt ⭐⭐⭐
+این مهم‌ترین منبع این ماه توئه.
+از این ترتیب برو:
+
+اول:
+
+OpenWrt — Basic Configuration
+
+بعد:
+
+OpenWrt — Network Basics
+
+بعد:
+
+OpenWrt — Network Configuration
+
+بعد:
+
+OpenWrt — UCI
+
+و اگر خواستی عمیق‌تر بشی:
+
+OpenWrt — UCI Technical Reference
+
+تو باید در نهایت بدون کمک AI بفهمی:
+
+/etc/config/network
+/etc/config/firewall
+
+uci show
+uci get
+uci set
+uci add
+uci delete
+uci commit
+
+چون دقیقاً یکی از فایل‌های پروژه‌ات uci_manager.py است.
+
+
+######################
+
+Python — ولی فقط System Programming
+
+تمرکزت روی این‌ها باشه:
+
+subprocess
+
+چون کدی که الان نوشتی دقیقاً با همین کار می‌کند؛ subprocess.run() برای اجرای process و گرفتن stdout/stderr/return code استفاده می‌شود.
+بعد:
+
+socket
+os
+pathlib
+json
+re
+logging
+threading
+exceptions
+
+برای socket هم مستندات رسمی Python خیلی خوبه.
+
+
+#######################
+
+Routing واقعی 🔴
+
+وقتی ip و OpenWrt رو فهمیدی، برو سراغ:
+
+static route
+default route
+routing table
+policy routing
+multiple routing tables
+ip rule
+
+این قسمت مستقیماً به:
+
+route_manager.py
+decision_engine.py
+mwan_manager.py
+مرتبطه.
+خود OpenWrt هم بخش جداگانه‌ای برای Routing و Policy-Based Routing دارد.
+
+########################
+
+MWAN3 / Failover
+
+این قسمت برای پروژه تو خیلی مهمه چون خودت در config داری:
+
+PRIMARY_LINK = "wan"
+
+BACKUP_LINKS = [
+    "wifi",
+    "lte",
+]
+
+و داکیومنت پروژه هم صراحتاً Load Balancing و Failover بین چند اینترنت رو می‌خواد.
+
+اینجا باید مفهوم اینا رو بفهمی:
+
+Multi-WAN
+Failover
+Load Balancing
+Health Check
+Metric
+Policy
+Interface tracking
+بعد برو سراغ MWAN3 در OpenWrt.
+
+###########################
+
+7. QoS
+بعد از Routing:
+یاد بگیر:
+tc
+qdisc
+class
+filter
+DSCP
+traffic classification
+SQM
+
+مستندات tc برای Traffic Control لینوکس منبع اصلیه.
+
+Linux tc manual
+
+برای پروژه تو این قسمت مهمه چون باید بتواند ترافیک را تشخیص داده و اولویت‌بندی کند.
+
+##########################
+8. Firewall
+فعلاً فقط:
+nftables
+NAT
+forwarding
+input/output
+prerouting/postrouting
+zones
+rules
+
+iptables قدیمی رو فعلاً عمیق نشو.
+
+در OpenWrtهای جدید، firewall4 از nftables استفاده می‌کند.
+
+OpenWrt — Firewall Configuration
+###################
+9. WireGuard
+
+اینو بذار آخر ماه.
+
+منبع اصلی:
+
+WireGuard — Conceptual Overview
+
+بعد:
+
+WireGuard — Quick Start
+
+فعلاً لازم نیست رمزنگاری WireGuard رو عمیق بخونی. فقط بفهم:
+
+interface
+peer
+private/public key
+endpoint
+allowed IPs
+routing

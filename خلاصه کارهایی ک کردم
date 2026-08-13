@@ -1,0 +1,306 @@
+; ایجاد فایلهای زیر در src/network/
+src/network/
+├── link_monitor.py
+├── decision_engine.py
+├── route_manager.py
+├── uci_manager.py
+├── mwan_manager.py
+├── config.py
+└── __init__.py
+
+
+###########################################################################################
+#config.py
+این فایل فقط تنظیمات پروژه را نگه می‌دارد.
+#کد نوشته شده در این بخش
+
+
+# Link Priority
+
+PRIMARY_LINK = "wan"
+BACKUP_LINKS = [
+    "wifi",
+    "lte",
+]
+
+# Health Check
+
+PING_TARGETS = [
+    "1.1.1.1",
+    "8.8.8.8",
+    "9.9.9.9",
+]
+
+DNS_TARGETS = [
+    "google.com",
+    "cloudflare.com",
+]
+
+HTTP_TARGETS = [
+    "https://www.google.com",
+    "https://www.cloudflare.com",
+]
+
+# Timing
+
+CHECK_INTERVAL = 2
+PING_TIMEOUT = 1
+
+# Failover
+
+FAILURE_THRESHOLD = 3
+RECOVERY_THRESHOLD = 5
+
+
+
+; این بخش پیاده سازی شد
+
+###########################################################################################
+#link_monitor.py
+#note for me!! -->  link_monitor.py    ----->  اون بالا re رو ایمپورت میکنیم
+# import subprocess
+# import re
+# from . import config
+
+#سلامت لینک های شبکه رو چک میکنه و فقط گزارش میده هیچ تغییری هم هیجا نمیده
+
+; ساختار کلی :
+ ---run_ping()   +
+│
+├── check_ping()  +
+│
+├── measure_latency()  +
+│
+├── measure_packet_loss() +
+│
+├── check_dns() +
+│
+├── check_http()
+│
+├── check_link() +
+│
+├── monitor_loop()
+│
+└── start()
+
+
+
+#run_ping()
+def run_ping(self, target):
+
+    command = [
+        "ping",
+        "-c", "4",
+        "-W", str(config.PING_TIMEOUT),
+        target
+    ]
+
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True
+    )
+
+    return result
+
+#check_ping()
+#فقط بررسی می‌کند آیا لینک پاسخ می‌دهد یا نه.
+def check_ping(self, ping_result):
+
+    if ping_result.returncode == 0:
+        return True
+
+    return False
+
+
+#measure_latency()
+# زمان پاسخ (Ping) را اندازه می‌گیرد.
+
+def measure_latency(self, ping_result):
+
+    if ping_result.returncode != 0: #پینگ شکست خورده پس دیگ اصلا مهم نیس
+        return None
+
+    output = ping_result.stdout #کل پینگ ه اینجاست stdout
+
+    match = re.search(    #به کمک ریجکس ها زمان پینگ هارو میگیریم ک میانگینشون رو حساب کنیم و بدیم بیرون
+        r"=\s*([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)",
+        output
+    )
+
+    if match:
+        return float(match.group(2))
+
+    return None
+
+
+
+
+#measure_packet_loss()
+    def measure_packet_loss(self, ping_result):
+
+    if ping_result.returncode != 0:
+        return 100.0
+
+    output = ping_result.stdout
+
+    match = re.search(
+        r"(\d+)% packet loss",
+        output
+    )
+
+    if match:
+        return float(match.group(1))
+
+    return None
+
+#check_link()
+#همه رو جمع میکنه یجا گزارش میده کار دیگ ای نمیکنه
+def check_link(self, target):
+
+    ping_result = self.run_ping(target)
+
+    alive = self.check_ping(ping_result)
+
+    latency = self.measure_latency(ping_result)
+
+    packet_loss = self.measure_packet_loss(ping_result)
+
+    dns=self.check_dns(config.DNS_TARGETS)
+
+    http=self.check_http(config.HTTP_TARGETS)
+ 
+    return {
+        "alive": alive,
+        "latency": latency,
+        "packet_loss": packet_loss
+        "dns" : dns
+        "http" : http
+    }
+
+
+#check_dns()
+#چک میکنه ک ایا dns  هایی ک از کانفیگ اضافه کردیم سالمن یا نه
+def check_dns(self,targets):
+    for target in config.DNS_TARGETS:
+
+        result = subprocess.run(
+            ["nslookup", target],
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode == 0:
+            return True
+
+    return False
+
+#check_http
+def check_http(self, targets):
+
+    for target in targets:
+
+        result = subprocess.run(
+            [
+                "curl",
+                "-I",
+                "--max-time",
+                "3",
+                target
+            ],
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode == 0:
+            return True
+
+    return False
+//////////////////////////////////////////////////////////
+
+#هدف کلی و نهایی تمامی بخش ها
+
+
+
+smartrouter/
+│
+├── src/
+│   ├── network/                    ✅ شبکه و مسیریابی
+│   │   ├── __init__.py
+│   │   ├── config.py              # تنظیمات
+│   │   ├── link_monitor.py       # مانیتور لینک
+│   │   ├── decision_engine.py    # تصمیم‌گیری
+│   │   ├── route_manager.py      # مدیریت مسیر
+│   │   ├── uci_manager.py        # ارتباط با UCI
+│   │   ├── mwan_manager.py       # ارتباط با MWAN3
+│   │   └── logger.py             # لاگ‌گیری
+│   │
+│   ├── core/                      ✅ هسته اصلی
+│   │   ├── __init__.py
+│   │   ├── service_manager.py    # مدیریت سرویس‌ها
+│   │   ├── scheduler.py          # زمان‌بندی وظایف
+│   │   ├── state_machine.py      # ماشین حالت
+│   │   └── event_bus.py          # ارتباط بین ماژول‌ها
+│   │
+│   ├── policy/                    ✅ سیاست‌ها
+│   │   ├── __init__.py
+│   │   ├── rules.py              # قوانین
+│   │   ├── priority.py           # اولویت‌بندی
+│   │   ├── profile.py            # پروفایل‌ها
+│   │   └── policy_manager.py     # مدیریت سیاست
+│   │
+│   ├── qos/                       ✅ کیفیت سرویس (QoS)
+│   │   ├── __init__.py
+│   │   ├── traffic_classifier.py # دسته‌بندی ترافیک
+│   │   ├── bandwidth_manager.py  # مدیریت پهنای باند
+│   │   ├── queue_manager.py      # مدیریت صف‌ها
+│   │   └── qos_manager.py        # مدیریت کلی QoS
+│   │
+│   ├── firewall/                  ✅ فایروال
+│   │   ├── __init__.py
+│   │   ├── firewall_manager.py   # مدیریت فایروال
+│   │   ├── rules.py              # قوانین فایروال
+│   │   └── security.py           # امنیت
+│   │
+│   ├── vpn/                       ✅ VPN
+│   │   ├── __init__.py
+│   │   ├── vpn_manager.py        # مدیریت VPN
+│   │   ├── wireguard.py          # WireGuard
+│   │   ├── openvpn.py            # OpenVPN
+│   │   └── tunnel_monitor.py     # مانیتور تونل
+│   │
+│   ├── monitor/                   ✅ مانیتورینگ
+│   │   ├── __init__.py
+│   │   ├── hardware.py           # سخت‌افزار
+│   │   ├── runtime.py            # زمان اجرا
+│   │   ├── traffic.py            # ترافیک
+│   │   ├── network.py            # شبکه
+│   │   └── collector.py          # جمع‌آوری اطلاعات
+│   │
+│   └── luci/                      ✅ رابط کاربری
+│       ├── __init__.py
+│       ├── backend/              # بک‌اند
+│       ├── api/                  # API
+│       ├── views/                # ویوها
+│       └── dashboard/            # داشبورد
+│
+├── tests/                         🧪 تست‌ها
+│   ├── test_network.py
+│   ├── test_core.py
+│   ├── test_policy.py
+│   └── test_integration.py
+│
+├── scripts/                       📜 اسکریپت‌ها
+│   ├── install.sh                # نصب
+│   ├── start.sh                  # شروع
+│   └── stop.sh                   # توقف
+│
+├── docs/                          📚 مستندات
+│   ├── architecture.md
+│   ├── api.md
+│   └── user_guide.md
+│
+├── main.py                        🚀 نقطه ورود اصلی
+├── requirements.txt              📦 وابستگی‌ها
+├── setup.py                      ⚙️ نصب
+└── README.md                     📖 توضیحات

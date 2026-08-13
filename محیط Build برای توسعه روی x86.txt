@@ -1,0 +1,255 @@
+ محیط Build برای توسعه روی x86
+
+#####now##########################################
+شبکه failvore routing
+اینترنت یا شبکه قطع شد فوری سوییچ کنه
+#کدهای پایتون برای بررسی پینگ و سلامت لینک ها
+##ارتباط پایتون با ابزار های داخلی مثل uci  برای تغییر تنظیمات سیسستم عامل و mwan3 را برقرار کنید
+###سرویسی ک درصورت  قطع شبکه اصلی route  جدید را در جدول routing لینوکس اعمال کند
+
+src/network/
+├── link_monitor.py
+├── decision_engine.py
+├── route_manager.py
+├── uci_manager.py
+├── mwan_manager.py
+├── config.py
+└── __init__.py
+
+
+######################################################3
+# کاری ک باید بکنیم
+# netwirk  :
+touch \
+config.py \
+link_monitor.py \
+decision_engine.py \
+route_manager.py \
+uci_manager.py \
+mwan_manager.py \
+logger.py \
+__init__.py
+
+###############################################33##
+
+#config.py
+این فایل فقط تنظیمات پروژه را نگه می‌دارد.
+مثلاً بعدها این چیزها داخلش قرار می‌گیرند:
+
+لیست لینک‌ها
+ترتیب اولویت
+آدرس‌های Health Check
+زمان بررسی
+Thresholdها
+Timeoutها
+هیچ منطقی داخلش نخواهد بود
+
+
+#link_monitor.py
+فقط وظیفه خواندن وضعیت لینک‌ها.
+هیچ تصمیمی نمی‌گیرد.
+فقط خروجی می‌دهد.
+
+
+#decision_engine.py
+فقط تصمیم میگیرد 
+اگر WAN1 خراب شد
+برو روی WAN2
+
+
+#route_manager.py
+فقط Route سیستم را عوض می‌کند.
+
+#uci_manager.py
+فقط با UCI صحبت می‌کند.
+
+#mwan_manager.py
+فقط با MWAN3 صحبت می‌کند.
+
+#logger.py
+فقط رخدادها را ثبت می‌کند.
+
+
+
+#Link Monitor.py
+
+وظیفه:
+بررسی سلامت تمامی لینک‌های شبکه و ارائه گزارش وضعیت آن‌ها.
+
+این فایل هیچ تغییری در تنظیمات سیستم ایجاد نمی‌کند و فقط وضعیت
+لینک‌ها را اندازه‌گیری می‌کند.
+
+#######################ساختار کلی این بخش
+link_monitor.py    ----->  اون بالا re رو ایمپورت میکنیم
+ ---run_ping()
+│
+├── check_ping()
+│
+├── measure_latency()
+│
+├── measure_packet_loss()
+│
+├── check_dns()
+│
+├── check_http()
+│
+├── check_link()
+│
+├── monitor_loop()
+│
+└── start()
+
+#run_ping()
+def run_ping(self, target):
+
+    command = [
+        "ping",
+        "-c", "4",
+        "-W", str(config.PING_TIMEOUT),
+        target
+    ]
+
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True
+    )
+
+    return result
+
+
+#check_ping()
+#فقط بررسی می‌کند آیا لینک پاسخ می‌دهد یا نه.
+def check_ping(self, ping_result):
+
+    if ping_result.returncode == 0:
+        return True
+
+    return False
+
+
+#measure_latency()
+# زمان پاسخ (Ping) را اندازه می‌گیرد.
+
+def measure_latency(self, ping_result):
+
+    if ping_result.returncode != 0: #پینگ شکست خورده پس دیگ اصلا مهم نیس
+        return None
+
+    output = ping_result.stdout #کل پینگ ه اینجاست stdout
+
+    match = re.search(    #به کمک ریجکس ها زمان پینگ هارو میگیریم ک میانگینشون رو حساب کنیم و بدیم بیرون
+        r"=\s*([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)",
+        output
+    )
+
+    if match:
+        return float(match.group(2))
+
+    return None
+
+
+
+
+    #measure_packet_loss()
+    def measure_packet_loss(self, ping_result):
+
+    if ping_result.returncode != 0:
+        return 100.0
+
+    output = ping_result.stdout
+
+    match = re.search(
+        r"(\d+)% packet loss",
+        output
+    )
+
+    if match:
+        return float(match.group(1))
+
+    return None
+
+    #check_http()
+    #همه رو جمع میکنه یجا گزارش میده
+ping_result = self.run_ping(target)
+
+alive = self.check_ping(ping_result)
+
+latency = self.measure_latency(ping_result)
+
+packet_loss = self.measure_packet_loss(ping_result)
+
+return {
+    "alive": alive,
+    "latency": latency,
+    "packet_loss": packet_loss
+}
+////////////////////////////////////////// //////////////
+
+#هدف کلی و نهایی تمامی بخش ها
+1. network/
+│
+├── config.py
+├── link_monitor.py
+├── decision_engine.py
+├── route_manager.py
+├── uci_manager.py
+├── mwan_manager.py
+├── logger.py
+└── __init__.py
+        │
+        ▼
+2. core/
+│
+├── service_manager.py
+├── scheduler.py
+├── state_machine.py
+└── event_bus.py
+        │
+        ▼
+3. policy/
+│
+├── rules.py
+├── priority.py
+├── profile.py
+└── policy_manager.py
+        │
+        ▼
+4. qos/
+│
+├── traffic_classifier.py
+├── bandwidth_manager.py
+├── queue_manager.py
+└── qos_manager.py
+        │
+        ▼
+5. firewall/
+│
+├── firewall_manager.py
+├── rules.py
+└── security.py
+        │
+        ▼
+6. vpn/
+│
+├── vpn_manager.py
+├── wireguard.py
+├── openvpn.py
+└── tunnel_monitor.py
+        │
+        ▼
+7. monitor/
+│
+├── hardware.py
+├── runtime.py
+├── traffic.py
+├── network.py
+└── collector.py
+        │
+        ▼
+8. luci/
+│
+├── backend
+├── api
+├── views
+└── dashboard
