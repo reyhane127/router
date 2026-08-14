@@ -217,6 +217,28 @@ def check_http(self, targets):
 
     return False
 //////////////////////////////////////////////////////////
+config.py
+   │
+   ├── LINKS
+   │     ├── wan  → eth0
+   │     ├── wifi → wlan0
+   │     └── lte  → wwan0
+   │
+   └── PROFILE
+         ├── home
+         └── industrial
+
+LinkMonitor
+   │
+   ├── Ping       → per interface ✅
+   ├── Latency    → ✅
+   ├── Packet Loss→ ✅
+   ├── DNS        → عمومی ✅
+   └── HTTP       → per interface ✅
+
+DecisionEngine → هنوز ساخته نشده
+RouteManager   → هنوز ساخته نشده
+
 
 #هدف کلی و نهایی تمامی بخش ها
 

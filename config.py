@@ -1,27 +1,41 @@
-# Router Mode
 
-MODE = "home"
-# "home" or "industrial"
-
-
-# Link Priority
-
-LINK_PRIORITY = {
-
-    "home": [
+PROFILES = {
+    "home": {
+      "priority":[
         "wifi",
         "wan",
         "lte",
-    ],
+        ]
+    },
+    
 
-    "industrial": [
+    "industrial": {
+      "priority":[
         "wan",
         "lte",
         "wifi",
     ]
+    }
 }
+    #active profile
 
-ACTIVE_LINK_PRIORITY = LINK_PRIORITY[MODE]
+ACTIVE_PROFILE = "home"
+
+# Link Configuration
+
+LINKS = {
+    "wan": {
+        "interface": "eth0",
+    },
+
+    "wifi": {
+        "interface": "wlan0",
+    },
+
+    "lte": {
+        "interface": "wwan0",
+    },
+}
 
 # Health Check
 

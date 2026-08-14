@@ -17,6 +17,7 @@ class LinkMonitor:
     - HTTP check
 
     This module only monitors.
+    It does not make routing decisions.
     It does not change routing or network configuration.
     """
 
@@ -26,10 +27,12 @@ class LinkMonitor:
 
     # Ping
 
-    def run_ping(self, target):
+    def run_ping(self, target, interface):
 
         command = [
             "ping",
+            "-I",
+            interface,
             "-c",
             "4",
             "-W",
@@ -48,11 +51,7 @@ class LinkMonitor:
 
             return result
 
-        except subprocess.TimeoutExpired:
-
-            return None
-
-        except FileNotFoundError:
+        except (subprocess.TimeoutExpired, FileNotFoundError):
 
             return None
 
@@ -71,9 +70,6 @@ class LinkMonitor:
     def measure_latency(self, ping_result):
 
         if ping_result is None:
-            return None
-
-        if ping_result.returncode != 0:
             return None
 
         output = ping_result.stdout
@@ -100,7 +96,7 @@ class LinkMonitor:
         output = ping_result.stdout
 
         match = re.search(
-            r"(\d+)% packet loss",
+            r"(\d+(?:\.\d+)?)%\s+packet loss",
             output
         )
 
@@ -144,7 +140,7 @@ class LinkMonitor:
 
     # HTTP Check
 
-    def check_http(self, targets):
+    def check_http(self, targets, interface):
 
         for target in targets:
 
@@ -153,6 +149,8 @@ class LinkMonitor:
                 result = subprocess.run(
                     [
                         "curl",
+                        "--interface",
+                        interface,
                         "-I",
                         "--max-time",
                         "3",
@@ -179,13 +177,14 @@ class LinkMonitor:
 
     # Ping All Targets
 
-    def check_ping_targets(self):
+    def check_ping_targets(self, interface):
 
         results = []
 
         for target in config.PING_TARGETS:
 
-            ping_result = self.run_ping(target)
+            ping_result = self.run_ping(target,interface)
+            
 
             results.append(
                 {
@@ -199,12 +198,18 @@ class LinkMonitor:
             )
 
         return results
+    
+    #Calculate Ping Health
+    
+    def calculate_ping_health(self, ping_results):
 
-    # Full Link Check
-
-    def check_link(self, link):
-
-        ping_results = self.check_ping_targets()
+        if not ping_results:
+            
+            return {
+                "alive": False,
+                "latency": None,
+                "packet_loss": 100.0
+            }
 
         successful_pings = [
             result
@@ -212,44 +217,84 @@ class LinkMonitor:
             if result["alive"]
         ]
 
-        if successful_pings:
+        latencies = [
+            result["latency"]
+            for result in successful_pings
+            if result["latency"] is not None
+        ]
 
-            average_latency = sum(
-                result["latency"]
-                for result in successful_pings
-                if result["latency"] is not None
-            ) / len(successful_pings)
-
+        if latencies:
+          average_latency = (
+            sum(latencies) / len(latencies)
+            )
         else:
-
             average_latency = None
 
-        total_packet_loss = sum(
+        packet_losses = [
             result["packet_loss"]
             for result in ping_results
-        ) / len(ping_results)
-
-        status = {
-
-            "link": link,
-
-            "alive": len(successful_pings) > 0,
-
-            "latency": average_latency,
-
-            "packet_loss": total_packet_loss,
-
-            "dns": self.check_dns(
-                config.DNS_TARGETS
-            ),
-
-            "http": self.check_http(
-                config.HTTP_TARGETS
+            if result["packet_loss"] is not None
+        ]
+        
+        if packet_losses:
+            average_packet_loss = (
+                sum(packet_losses) / len(packet_losses)
             )
+        else:
+            average_packet_loss = 100.0
+
+        return {
+            "alive": len(successful_pings) > 0,
+            "latency": average_latency,
+            "packet_loss": average_packet_loss
         }
 
-        return status
 
+    # Full Link Check
+
+    def check_link(self, link):
+        if link not in config.LINKS:
+    
+            return {
+                "link": link,
+                "interface": None,
+                "alive": False,
+                "latency": None,
+                "packet_loss": 100.0,
+                "dns": False,
+                "http": False,
+                "error": "Unknown link"
+            }
+
+        interface = config.LINKS[link]["interface"]
+
+        ping_results = self.check_ping_targets(
+            interface
+        )
+        
+        ping_health = self.calculate_ping_health(
+            ping_results
+        )
+        
+        dns_status = self.check_dns(
+            config.DNS_TARGETS
+        )
+
+        http_status = self.check_http(
+            config.HTTP_TARGETS,
+            interface
+        )
+
+        return {
+            "link": link,
+            "interface": interface,
+            "alive": ping_health["alive"],
+            "latency": ping_health["latency"],
+            "packet_loss": ping_health["packet_loss"],
+            "dns": dns_status,
+            "http": http_status
+        }
+ 
     # Monitor Loop
 
     def monitor_loop(self, link):
