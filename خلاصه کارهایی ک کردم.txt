@@ -240,10 +240,32 @@ DecisionEngine → هنوز ساخته نشده
 RouteManager   → هنوز ساخته نشده
 
 
-#هدف کلی و نهایی تمامی بخش ها
+برای لینک مانیتور:
+✅ Ping
+✅ Latency
+✅ Packet Loss
+✅ DNS
+✅ HTTP
+✅ بررسی هر interface به‌صورت جداگانه
+✅ برگرداندن یک نتیجه‌ی استاندارد از check_link()
+✅ بدون دخالت در Routing و Failover
+
+و config.py هم خوب تفکیک شده:
+
+✅ Profileهای home و industrial
+✅ اولویت لینک‌ها
+✅ interface هر لینک
+✅ targetهای health check
+✅ thresholdهای failure/recovery
+✅ interval
+
+
+check_dns() فعلاً interface-specific نیست.
+FAILURE_THRESHOLD و RECOVERY_THRESHOLD هنوز استفاده نشده‌اند؛ که کاملاً طبیعی است چون بخش Failover را هنوز ننوشتی.
 
 
 
+#هدف کلی 
 smartrouter/
 │
 ├── src/
