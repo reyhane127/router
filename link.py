@@ -41,7 +41,7 @@ class LinkMonitor:
         ]
 
         try:
-
+#stdout stderr
             result = subprocess.run(
                 command,
                 capture_output=True,
@@ -63,7 +63,7 @@ class LinkMonitor:
         if ping_result is None:
             return False
 
-        return ping_result.returncode == 0
+        return ping_result.returncode == 0 #وضعیت پایان فرمان
 
     # Latency
 
@@ -73,12 +73,12 @@ class LinkMonitor:
             return None
 
         output = ping_result.stdout
-
+                #groups: 1:min  2:avg  3:max 4:mdve(انحراف معیار)
         match = re.search(
             r"=\s*([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)",
             output
         )
-
+        
         if match:
 
             # Average latency
@@ -89,12 +89,14 @@ class LinkMonitor:
     # Packet Loss
 
     def measure_packet_loss(self, ping_result):
-
+        #100% packet loss
         if ping_result is None:
             return 100.0
 
         output = ping_result.stdout
-
+        #4 packets transmitted, 4 received, 0% packet loss, time 3003ms
+        #                                   ^^
+                                    
         match = re.search(
             r"(\d+(?:\.\d+)?)%\s+packet loss",
             output

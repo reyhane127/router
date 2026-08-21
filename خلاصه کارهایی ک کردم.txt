@@ -271,6 +271,58 @@ DecisionEngine:
 اگر هیچکدام نبودند None  برمیگردد
 
 
+#route_manager:
+
+RouteManager
+│
+├── get_default_route()
+│      ↓
+│   خواندن Default Route
+│
+├── default_route_info()
+│      ↓
+│   استخراج gateway و interface
+│
+├── set_default_route()
+│      ↓
+│   تغییر Default Route
+│
+└── apply_link(link)
+       ↓
+   پیدا کردن interface + gateway
+       ↓
+   set_default_route()
+
+
+
+#منطق Failover
+
+              LinkMonitor
+                   │
+                   ▼
+             check_link()
+                   │
+                   ▼
+              results
+                   │
+                   ▼
+            DecisionEngine
+                   │
+        ┌──────────┴──────────┐
+        │                     │
+     سالم است              خراب است
+        │                     │
+ failure_count += 1      failure_count = 0
+        │                     │
+        └──────────┬──────────┘
+                   ▼
+             تصمیم‌گیری
+                   │
+                   ▼
+             RouteManager
+                   │
+                   ▼
+             Active Route
 
 #هدف کلی 
 smartrouter/

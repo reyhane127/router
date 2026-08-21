@@ -26,14 +26,17 @@ ACTIVE_PROFILE = "home"
 LINKS = {
     "wan": {
         "interface": "eth0",
+        "gateway":"172.27.96.1",
     },
 
     "wifi": {
         "interface": "wlan0",
+        "gateway":None
     },
 
     "lte": {
         "interface": "wwan0",
+        "gateway":None
     },
 }
 
