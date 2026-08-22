@@ -65,5 +65,3 @@ class RouteManager:
             interface,
             gateway
         )
-        
-    

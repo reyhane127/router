@@ -14,208 +14,11 @@ src/network/
 این فایل فقط تنظیمات پروژه را نگه می‌دارد.
 #کد نوشته شده در این بخش
 
-
-# Link Priority
-
-PRIMARY_LINK = "wan"
-BACKUP_LINKS = [
-    "wifi",
-    "lte",
-]
-
-# Health Check
-
-PING_TARGETS = [
-    "1.1.1.1",
-    "8.8.8.8",
-    "9.9.9.9",
-]
-
-DNS_TARGETS = [
-    "google.com",
-    "cloudflare.com",
-]
-
-HTTP_TARGETS = [
-    "https://www.google.com",
-    "https://www.cloudflare.com",
-]
-
-# Timing
-
-CHECK_INTERVAL = 2
-PING_TIMEOUT = 1
-
-# Failover
-
-FAILURE_THRESHOLD = 3
-RECOVERY_THRESHOLD = 5
-
-
-
-; این بخش پیاده سازی شد
-
-###########################################################################################
+######################################################################################
 #link_monitor.py
-#note for me!! -->  link_monitor.py    ----->  اون بالا re رو ایمپورت میکنیم
-# import subprocess
-# import re
-# from . import config
 
 #سلامت لینک های شبکه رو چک میکنه و فقط گزارش میده هیچ تغییری هم هیجا نمیده
 
-; ساختار کلی :
- ---run_ping()   +
-│
-├── check_ping()  +
-│
-├── measure_latency()  +
-│
-├── measure_packet_loss() +
-│
-├── check_dns() +
-│
-├── check_http()
-│
-├── check_link() +
-│
-├── monitor_loop()
-│
-└── start()
-
-
-
-#run_ping()
-def run_ping(self, target):
-
-    command = [
-        "ping",
-        "-c", "4",
-        "-W", str(config.PING_TIMEOUT),
-        target
-    ]
-
-    result = subprocess.run(
-        command,
-        capture_output=True,
-        text=True
-    )
-
-    return result
-
-#check_ping()
-#فقط بررسی می‌کند آیا لینک پاسخ می‌دهد یا نه.
-def check_ping(self, ping_result):
-
-    if ping_result.returncode == 0:
-        return True
-
-    return False
-
-
-#measure_latency()
-# زمان پاسخ (Ping) را اندازه می‌گیرد.
-
-def measure_latency(self, ping_result):
-
-    if ping_result.returncode != 0: #پینگ شکست خورده پس دیگ اصلا مهم نیس
-        return None
-
-    output = ping_result.stdout #کل پینگ ه اینجاست stdout
-
-    match = re.search(    #به کمک ریجکس ها زمان پینگ هارو میگیریم ک میانگینشون رو حساب کنیم و بدیم بیرون
-        r"=\s*([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)",
-        output
-    )
-
-    if match:
-        return float(match.group(2))
-
-    return None
-
-
-
-
-#measure_packet_loss()
-    def measure_packet_loss(self, ping_result):
-
-    if ping_result.returncode != 0:
-        return 100.0
-
-    output = ping_result.stdout
-
-    match = re.search(
-        r"(\d+)% packet loss",
-        output
-    )
-
-    if match:
-        return float(match.group(1))
-
-    return None
-
-#check_link()
-#همه رو جمع میکنه یجا گزارش میده کار دیگ ای نمیکنه
-def check_link(self, target):
-
-    ping_result = self.run_ping(target)
-
-    alive = self.check_ping(ping_result)
-
-    latency = self.measure_latency(ping_result)
-
-    packet_loss = self.measure_packet_loss(ping_result)
-
-    dns=self.check_dns(config.DNS_TARGETS)
-
-    http=self.check_http(config.HTTP_TARGETS)
- 
-    return {
-        "alive": alive,
-        "latency": latency,
-        "packet_loss": packet_loss
-        "dns" : dns
-        "http" : http
-    }
-
-
-#check_dns()
-#چک میکنه ک ایا dns  هایی ک از کانفیگ اضافه کردیم سالمن یا نه
-def check_dns(self,targets):
-    for target in config.DNS_TARGETS:
-
-        result = subprocess.run(
-            ["nslookup", target],
-            capture_output=True,
-            text=True
-        )
-
-        if result.returncode == 0:
-            return True
-
-    return False
-
-#check_http
-def check_http(self, targets):
-
-    for target in targets:
-
-        result = subprocess.run(
-            [
-                "curl",
-                "-I",
-                "--max-time",
-                "3",
-                target
-            ],
-            capture_output=True,
-            text=True
-        )
-
-        if result.returncode == 0:
-            return True
-
-    return False
 //////////////////////////////////////////////////////////
 config.py
    │
@@ -324,6 +127,54 @@ RouteManager
                    ▼
              Active Route
 
+#network_manager:
+
+همچین کاری میکنه:
+
+برو وضعیت WAN را بگیر
+برو وضعیت WiFi را بگیر
+برو وضعیت LTE را بگیر
+
+        ↓
+
+همه نتایج را بده به DecisionEngine
+
+        ↓
+
+DecisionEngine می‌گوید WAN
+
+        ↓
+
+WAN را بده به RouteManager
+
+
+
+apply_decision: منطق 
+
+selected_link == None؟
+        │
+       بله ──→ هیچ تغییری نده → False
+        │
+       خیر
+        ↓
+selected_link == current_link؟
+        │
+       بله ──→ هیچ تغییری نده → False
+        │
+       خیر
+        ↓
+RouteManager.apply_link()
+        ↓
+موفق؟
+   │          │
+  بله        خیر
+   │          │
+current_link  current_link
+= selected    بدون تغییر
+   │          │
+ True        False
+ 
+
 #هدف کلی 
 smartrouter/
 │
@@ -337,6 +188,7 @@ smartrouter/
 │   │   ├── uci_manager.py        # ارتباط با UCI
 │   │   ├── mwan_manager.py       # ارتباط با MWAN3
 │   │   └── logger.py             # لاگ‌گیری
+|   |   |└──network_manager.py    #جایی برای کار کردن همزمان link_monitorوdecision_engineوroute_manager
 │   │
 │   ├── core/                      ✅ هسته اصلی
 │   │   ├── __init__.py
