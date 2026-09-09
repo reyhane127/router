@@ -53,6 +53,12 @@ DNS_TARGETS = [
     "cloudflare.com",
 ]
 
+DNS_SERVERS = [
+    "1.1.1.1",
+    "8.8.8.8",
+    "9.9.9.9",
+]
+
 HTTP_TARGETS = [
     "https://www.google.com",
     "https://www.cloudflare.com",
@@ -68,3 +74,14 @@ PING_TIMEOUT = 1
 FAILURE_THRESHOLD = 3
 RECOVERY_THRESHOLD = 5
 AUTO_FAILBACK=True
+
+MAX_LATENCY = 300 #milliseconds
+MAX_PACKET_LOSS = 10 #%
+
+PING_COUNT = 4
+PING_COMMAND_TIMEOUT = 5
+
+DNS_TIMEOUT = 3
+
+HTTP_TIMEOUT = 3
+HTTP_COMMAND_TIMEOUT = 5

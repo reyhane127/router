@@ -175,6 +175,93 @@ current_link  current_link
  True        False
  
 
+
+
+قابلیت	وضعیت
+Failover	🟢 ~80٪
+Load Balancing	🔴 ~0٪
+Smart QoS	🔴 ~0٪
+VPN	        🔴 ~0٪
+Ad Blocking	🔴 ~0٪
+Firewall	🔴 ~0٪
+Monitoring	🟡 ~40٪
+Web Dashboard	🟡 ~50٪
+Parental Control🔴 ~0٪
+Guest Portal	🔴 ~0٪
+IoT Hub	        🔴 ~0٪
+
+
+
+
+#######################
+Phase 1 — Network Core
+
+Failover
+Route management
+Gateway detection
+Link monitoring
+recovery/failback
+OpenWrt/UCI
+
+Phase 2 — Firewall + Security Foundation
+
+zoneها
+forwarding
+NAT
+rule management
+safe defaults
+
+Phase 3 — VPN
+
+WireGuard
+client/server
+routing
+kill switch
+DNS leak protection
+failover integration
+
+Phase 4 — QoS
+
+bandwidth limits
+per-device limits
+traffic classification
+priority queues
+gaming/VoIP/video-call policies
+
+Phase 5 — Parental Control
+
+device profiles
+schedule
+domain/category blocking
+DNS filtering
+firewall enforcement
+
+Phase 6 — Dashboard
+
+وضعیت WAN/WiFi/LTE
+active route
+VPN
+bandwidth
+devices
+parental policies
+logs
+
+Phase 7 — Product Hardening
+
+crash recovery
+configuration validation
+rollback
+persistence
+security review
+tests
+performance
+upgrade/migration
+factory reset
+
+
+
+#########################
+
 #هدف کلی 
 smartrouter/
 │
@@ -259,3 +346,131 @@ smartrouter/
 ├── requirements.txt              📦 وابستگی‌ها
 ├── setup.py                      ⚙️ نصب
 └── README.md                     📖 توضیحات
+
+
+ترتیب واقعی کار:
+
+① Network
+
+Failover
+Load Balancing
+
+② QoS
+
+Traffic Classifier
+Bandwidth Manager
+Queue Manager
+QoS Manager
+
+③ Monitoring
+
+Network
+Traffic
+Hardware
+Runtime
+Collector
+
+④ Security
+
+Firewall
+AdBlock
+
+⑤ VPN
+
+WireGuard
+OpenVPN
+Tunnel Monitor
+
+⑥ Policy
+
+Profiles
+Parental Control
+Scheduling
+
+⑦ Guest Portal
+
+⑧ IoT Hub
+
+⑨ Web Dashboard
+
+⑩ Integration + Tests
+
+
+
+33333333333333333333333333333333333
+
+Phase 1 — تکمیل Network Core
+اصلاح config.py
+اصلاح LinkMonitor
+بازطراحی DecisionEngine
+تکمیل RouteManager
+تکمیل NetworkManager
+اضافه کردن logger.py
+تست Failover
+تست Recovery
+تست Auto-Failback
+
+
+Phase 2 — OpenWrt Integration
+uci_manager.py
+mwan_manager.py
+تشخیص gateway واقعی
+interface/network mapping
+Multi-WAN
+Failover واقعی
+Load Balancing واقعی
+
+
+
+Phase 3 — Smart QoS
+Traffic Classifier
+تشخیص Gaming / Video Call / Streaming / Web / Bulk
+Queue Manager
+Bandwidth Manager
+اولویت‌بندی ترافیک
+اتصال به tc / nftables در OpenWrt
+
+
+
+Phase 4 — Security
+Firewall Manager
+Rule Engine
+WireGuard Client
+WireGuard Server
+VPN Policy Routing
+Ad Blocking
+DNS filtering
+
+
+
+Phase 5 — Monitoring
+CPU
+RAM
+Temperature
+Interface traffic
+WAN latency
+Packet loss
+VPN status
+QoS statistics
+
+
+Phase 6 — Web UI
+
+Backend:
+
+REST API
+   │
+   ├── /network
+   ├── /links
+   ├── /routes
+   ├── /qos
+   ├── /vpn
+   ├── /firewall
+   └── /monitor
+
+و بعد Dashboard.
+
+Phase 7 — قابلیت‌های کاربری
+Parental Control
+Guest Portal
+IoT Hub

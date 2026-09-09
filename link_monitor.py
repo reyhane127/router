@@ -1,29 +1,44 @@
 import subprocess
 import re
 import time
-
+import socket
+import random
+import os
 from . import config
 
 
 class LinkMonitor:
     """
-    Network Link Health Monitor
+   Monitor the health of network links.
 
     Responsibilities:
-    - Ping check
-    - Latency measurement
-    - Packet loss measurement
-    - DNS check
-    - HTTP check
+    - Check interface availability
+    - Ping targets
+    - Measure latency
+    - Measure packet loss
+    - Check DNS connectivity
+    - Check HTTP connectivity
+    - Return a standardized health status
 
-    This module only monitors.
-    It does not make routing decisions.
-    It does not change routing or network configuration.
+    This class does NOT:
+    - Make routing decisions
+    - Change the default route
+    - Modify network configuration
     """
 
     def __init__(self):
 
         self.running = False
+        
+        
+    def interface_exists(self,interface):
+         
+        if not interface:
+            return False
+        
+        return os.path.exists(
+            f"/sys/class/net/{interface}"
+        )
 
     # Ping
 
@@ -34,7 +49,7 @@ class LinkMonitor:
             "-I",
             interface,
             "-c",
-            "4",
+            str(config.PING_COUNT),
             "-W",
             str(config.PING_TIMEOUT),
             target
@@ -42,16 +57,16 @@ class LinkMonitor:
 
         try:
 #stdout stderr
-            result = subprocess.run(
+             return subprocess.run(
                 command,
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=config.PING_COMMAND_TIMEOUT,
+                check=False
             )
 
-            return result
 
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+        except (subprocess.TimeoutExpired, FileNotFoundError,OSError):
 
             return None
 
@@ -72,20 +87,24 @@ class LinkMonitor:
         if ping_result is None:
             return None
 
-        output = ping_result.stdout
+        output = ping_result.stdout or ""
                 #groups: 1:min  2:avg  3:max 4:mdve(انحراف معیار)
         match = re.search(
             r"=\s*([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)",
             output
         )
         
-        if match:
-
+        if not match:
+            return None
+        
+        try:
             # Average latency
             return float(match.group(2))
 
-        return None
-
+        except ValueError:
+            return None
+        
+        
     # Packet Loss
 
     def measure_packet_loss(self, ping_result):
@@ -93,7 +112,7 @@ class LinkMonitor:
         if ping_result is None:
             return 100.0
 
-        output = ping_result.stdout
+        output = ping_result.stdout or ""
         #4 packets transmitted, 4 received, 0% packet loss, time 3003ms
         #                                   ^^
                                     
@@ -102,74 +121,129 @@ class LinkMonitor:
             output
         )
 
-        if match:
+        if not match:
+            return 100.0
+        try:
 
             return float(match.group(1))
-
-        return 100.0
-
+        except ValueError:
+            return 100.0
     # DNS Check
 
-    def check_dns(self, targets):
+    def check_dns(self, targets,interface):
+    
+     for target in targets:
 
-        for target in targets:
+        for dns_server in config.DNS_SERVERS:
+
+            sock = socket.socket(
+                socket.AF_INET,
+                socket.SOCK_DGRAM
+            )
 
             try:
 
-                result = subprocess.run(
-                    [
-                        "nslookup",
-                        target
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
+                sock.settimeout(config.DNS_TIMEOUT)
+
+                sock.setsockopt(
+                    socket.SOL_SOCKET,
+                    socket.SO_BINDTODEVICE,
+                    interface.encode() + b"\0"
                 )
 
-            except subprocess.TimeoutExpired:
+                transaction_id = random.randint(0, 65535)
 
+                header = (
+                    transaction_id.to_bytes(2, "big")
+                    + b"\x01\x00"
+                    + b"\x00\x01"
+                    + b"\x00\x00"
+                    + b"\x00\x00"
+                    + b"\x00\x00"
+                )
+
+                question = b""
+
+                for part in target.split("."):
+                    question += (
+                        bytes([len(part)])
+                        + part.encode()
+                    )
+
+                question += b"\x00"
+                question += b"\x00\x01"
+                question += b"\x00\x01"
+
+                query = header + question
+
+                sock.sendto(
+                    query,
+                    (dns_server, 53)
+                )
+
+                response, _ = sock.recvfrom(512)
+
+                if len(response) >= 12:
+
+                    response_id = int.from_bytes(
+                        response[0:2],
+                        "big"
+                    )
+
+                    flags = int.from_bytes(
+                        response[2:4],
+                        "big"
+                    )
+
+                    response_is_valid =(
+                        response_id == transaction_id
+                        and (flags & 0x8000)
+                        and (flags & 0x000F) == 0
+                    )
+                    
+                    if response_is_valid:
+                        return True
+
+            except (
+                socket.timeout,
+                OSError
+            ):
                 continue
 
-            except FileNotFoundError:
+            finally:
+                sock.close()
 
-                return False
-
-            if result.returncode == 0:
-
-                return True
-
-        return False
+     return False
 
     # HTTP Check
 
     def check_http(self, targets, interface):
 
         for target in targets:
-
-            try:
-
-                result = subprocess.run(
-                    [
+            command = [
                         "curl",
                         "--interface",
                         interface,
                         "-I",
                         "--max-time",
-                        "3",
+                        str(config.HTTP_TIMEOUT),
                         target
-                    ],
+                    ]
+            try:
+
+                result = subprocess.run(
+                    command,
                     capture_output=True,
                     text=True,
-                    timeout=5
+                    timeout=config.HTTP_COMMAND_TIMEOUT,
+                    check=False
                 )
 
-            except subprocess.TimeoutExpired:
-
+            except (subprocess.TimeoutExpired
+            ,FileExistsError,
+            OSError
+            ):
                 continue
-
-            except FileNotFoundError:
-
-                return False
 
             if result.returncode == 0:
 
@@ -191,7 +265,7 @@ class LinkMonitor:
             results.append(
                 {
                     "target": target,
-                    "alive": self.check_ping(ping_result),
+                    "alive": self.check_ping(ping_result) ,
                     "latency": self.measure_latency(ping_result),
                     "packet_loss": self.measure_packet_loss(
                         ping_result
@@ -270,6 +344,18 @@ class LinkMonitor:
 
         interface = config.LINKS[link]["interface"]
 
+        if not self.interface_exists(interface):
+            return {
+                "link": link,
+                "interface": None,
+                "alive": False,
+                "latency": None,
+                "packet_loss": 100.0,
+                "dns": False,
+                "http": False,
+                "error": "Interface does not exist"
+            }
+            
         ping_results = self.check_ping_targets(
             interface
         )
@@ -279,18 +365,25 @@ class LinkMonitor:
         )
         
         dns_status = self.check_dns(
-            config.DNS_TARGETS
+            config.DNS_TARGETS,
+            interface
         )
 
         http_status = self.check_http(
             config.HTTP_TARGETS,
             interface
         )
+        
+        alive=(
+            ping_health["alive"]
+            and dns_status 
+            and http_status
+            )
 
         return {
             "link": link,
             "interface": interface,
-            "alive": ping_health["alive"],
+            "alive": alive,
             "latency": ping_health["latency"],
             "packet_loss": ping_health["packet_loss"],
             "dns": dns_status,
@@ -299,7 +392,7 @@ class LinkMonitor:
  
     # Monitor Loop
 
-    def monitor_loop(self, link):
+    def monitor_loop(self, link, callback=None):
 
         self.running = True
 
@@ -307,10 +400,8 @@ class LinkMonitor:
 
             result = self.check_link(link)
 
-            print(
-                "Link Status:",
-                result
-            )
+            if callback is not None:
+                callback(result)
 
             time.sleep(
                 config.CHECK_INTERVAL
@@ -318,9 +409,9 @@ class LinkMonitor:
 
     # Start
 
-    def start(self, link):
+    def start(self, link, callback=None):
 
-        self.monitor_loop(link)
+        self.monitor_loop(link , callback)
 
     # Stop
 

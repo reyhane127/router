@@ -12,7 +12,7 @@ class NetworkManager:
      self.decision_engine = DecisionEngine()
      self.route_manager = RouteManager()
      self.current_link = self.get_current_link()
-     self.runnig = False
+     self.running = False
     
     def check_all_links(self):
         
@@ -74,9 +74,9 @@ class NetworkManager:
         
     def monitor_loop(self):
         
-        self.runnig = True
+        self.running = True
         
-        while self.runnig:
+        while self.running:
             
             self.run_once()
             
@@ -89,5 +89,5 @@ class NetworkManager:
         
     def stop(self):
         
-        self.runnig = False
+        self.running = False
     
